@@ -629,13 +629,16 @@ class _HomeWidgetState extends State<HomeWidget> {
     );
   }
 
+  bool isOfflineMode = true;
   Widget _getBody(BuildContext context) {
-    if (!Configuration.instance.hasConfiguredAccount()) {
+    if (!Configuration.instance.hasConfiguredAccount() && !isOfflineMode) {
       _closeDrawerIfOpen(context);
       return const LandingPageWidget();
     }
     if (!LocalSyncService.instance.hasGrantedPermissions()) {
-      entityService.syncEntities();
+      if (isOfflineMode) {
+        entityService.syncEntities();
+      }
       return const GrantPermissionsWidget();
     }
     if (!LocalSyncService.instance.hasCompletedFirstImport()) {
