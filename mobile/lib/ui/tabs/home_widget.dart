@@ -664,7 +664,8 @@ class _HomeWidgetState extends State<HomeWidget> {
     _showShowBackupHook =
         !Configuration.instance.hasSelectedAnyBackupFolder() &&
             !LocalSyncService.instance.hasGrantedLimitedPermissions() &&
-            CollectionsService.instance.getActiveCollections().isEmpty;
+            CollectionsService.instance.getActiveCollections().isEmpty &&
+            !isOfflineMode;
 
     return Stack(
       children: [
@@ -686,15 +687,17 @@ class _HomeWidgetState extends State<HomeWidget> {
                 _showShowBackupHook
                     ? const StartBackupHookWidget(headerWidget: HeaderWidget())
                     : HomeGalleryWidget(
-                        header: const HeaderWidget(),
+                        header: isOfflineMode
+                            ? const SizedBox.shrink()
+                            : const HeaderWidget(),
                         footer: const SizedBox(
                           height: 160,
                         ),
                         selectedFiles: _selectedFiles,
                       ),
-                _userCollectionsTab,
-                _sharedCollectionTab,
-                _searchTab,
+                if (!isOfflineMode) _userCollectionsTab,
+                if (isOfflineMode) _sharedCollectionTab,
+                if (!isOfflineMode) _searchTab,
               ],
             );
           },
@@ -737,10 +740,11 @@ class _HomeWidgetState extends State<HomeWidget> {
                               ),
                             )
                         : const SizedBox.shrink(),
-                    HomeBottomNavigationBar(
-                      _selectedFiles,
-                      selectedTabIndex: _selectedTabIndex,
-                    ),
+                    if (!isOfflineMode)
+                      HomeBottomNavigationBar(
+                        _selectedFiles,
+                        selectedTabIndex: _selectedTabIndex,
+                      ),
                   ],
                 ),
               );
