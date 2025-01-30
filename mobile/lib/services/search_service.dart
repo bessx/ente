@@ -12,6 +12,7 @@ import 'package:photos/data/years.dart';
 import 'package:photos/db/files_db.dart';
 import "package:photos/db/ml/db.dart";
 import 'package:photos/events/local_photos_updated_event.dart';
+import "package:photos/extensions/user_extension.dart";
 import "package:photos/models/api/collection/user.dart";
 import 'package:photos/models/collection/collection.dart';
 import 'package:photos/models/collection/collection_items.dart';
@@ -60,6 +61,7 @@ class SearchService {
   final _logger = Logger((SearchService).toString());
   final _collectionService = CollectionsService.instance;
   static const _maximumResultsLimit = 20;
+  late final mlDataDB = MLDataDB.instance;
 
   SearchService._privateConstructor();
 
@@ -763,7 +765,7 @@ class SearchService {
   ) async {
     _logger.info('getClusterFilesForPersonID $personID');
     final Map<int, Set<String>> fileIdToClusterID =
-        await MLDataDB.instance.getFileIdToClusterIDSet(personID);
+        await mlDataDB.getFileIdToClusterIDSet(personID);
     _logger.info('faceDbDone getClusterFilesForPersonID $personID');
     final Map<String, List<EnteFile>> clusterIDToFiles = {};
     final allFiles = await getAllFilesForSearch();
@@ -791,11 +793,10 @@ class SearchService {
     try {
       debugPrint("getting faces");
       final Map<int, Set<String>> fileIdToClusterID =
-          await MLDataDB.instance.getFileIdToClusterIds();
+          await mlDataDB.getFileIdToClusterIds();
       final Map<String, PersonEntity> personIdToPerson =
           await PersonService.instance.getPersonsMap();
-      final clusterIDToPersonID =
-          await MLDataDB.instance.getClusterIDToPersonID();
+      final clusterIDToPersonID = await mlDataDB.getClusterIDToPersonID();
 
       final List<GenericSearchResult> facesResult = [];
       final Map<String, List<EnteFile>> clusterIdToFiles = {};
@@ -919,7 +920,7 @@ class SearchService {
               "`getAllFace`: Cluster $clusterId should not have person id ${clusterIDToPersonID[clusterId]}, deleting the mapping",
               Exception('ClusterID assigned to a person that no longer exists'),
             );
-            await MLDataDB.instance.removeClusterToPerson(
+            await mlDataDB.removeClusterToPerson(
               personID: personID,
               clusterID: clusterId,
             );
@@ -1346,7 +1347,8 @@ class SearchService {
           .getFileOwner(file.ownerID!, file.collectionID);
 
       if (fileOwner.email.toLowerCase().contains(lowerCaseQuery) ||
-          ((fileOwner.name?.toLowerCase().contains(lowerCaseQuery)) ?? false)) {
+          ((fileOwner.displayName?.toLowerCase().contains(lowerCaseQuery)) ??
+              false)) {
         if (peopleToSharedFiles.containsKey(fileOwner)) {
           peopleToSharedFiles[fileOwner]!.add(file);
         } else {
@@ -1359,7 +1361,9 @@ class SearchService {
       searchResults.add(
         GenericSearchResult(
           ResultType.shared,
-          key.name != null && key.name!.isNotEmpty ? key.name! : key.email,
+          key.displayName != null && key.displayName!.isNotEmpty
+              ? key.displayName!
+              : key.email,
           value,
           hierarchicalSearchFilter: ContactsFilter(
             user: key,
@@ -1396,9 +1400,9 @@ class SearchService {
       }
 
       peopleToSharedFiles.forEach((key, value) {
-        final name = key.name != null && key.name!.isNotEmpty
-            ? key.name!
-            : key.email.split("@")[0];
+        final name = key.displayName != null && key.displayName!.isNotEmpty
+            ? key.displayName!
+            : key.email;
         searchResults.add(
           GenericSearchResult(
             ResultType.shared,
